@@ -5,19 +5,9 @@
 [build.environment]
   NODE_VERSION = "18"
 
-[[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/:splat"
-  status = 200
-
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
 
 [functions]
   directory = ".netlify/functions"
   node_bundler = "esbuild"
-
-[context.production.environment]
-  NODE_ENV = "production"
