@@ -5,9 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
-    "lint": "next lint --fix",
-    "export": "next export"
+    "start": "next start"
   },
   "dependencies": {
     "next": "15.3.4",
