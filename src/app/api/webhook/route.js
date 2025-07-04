@@ -3,77 +3,167 @@ import { NextResponse } from 'next/server';
 export async function POST(request) {
   try {
     const body = await request.json();
-    console.log('Received webhook:', JSON.stringify(body, null, 2));
     
     if (body.message) {
-      const chatId = body.message.chat.id;
-      const text = body.message.text;
-      const fromId = body.message.from.id;
+      const message = body.message;
+      const chatId = message.chat.id;
+      const text = message.text;
+      const fromUser = message.from;
       
-      console.log(`Message from user ${fromId} in chat ${chatId}: ${text}`);
-      
-      // Проверяем, что это не сообщение от самого бота
-      if (body.message.from.is_bot) {
-        console.log('Ignoring message from bot');
+      // Игнорируем сообщения от ботов
+      if (fromUser.is_bot) {
         return NextResponse.json({ success: true });
       }
       
       let responseText = '';
       
-      // Обработка команд
       if (text === '/start') {
-        responseText = `🤖 Привет! Я NeuromaniaGPT бот!
+        responseText = `🤖 Привет! Я NeuromaniaGPT бот с реальным AI!
 
-🎨 Отправь "нарисуй кота" - создам изображение
-💬 Просто напиши что-нибудь - отвечу через AI
-💻 Напиши "код python hello" - помогу с программированием`;
+🧠 Просто пиши мне - отвечу через Claude 3.5 Haiku
+🎨 "нарисуй [описание]" - создам изображение через FLUX
+💻 "код [задача]" - помогу с программированием через DeepSeek
+
+Попробуй написать: "Расскажи интересный факт"`;
       }
-      else if (text && text.toLowerCase().includes('нарисуй')) {
-        responseText = `🎨 Генерирую изображение...
+      else if (text?.toLowerCase().startsWith('нарисуй')) {
+        const prompt = text.slice(7).trim();
         
-⏳ Функция FLUX скоро будет подключена!`;
+        try {
+          // Отправляем сообщение о начале генерации
+          await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              chat_id: chatId,
+              text: `🎨 Генерирую изображение: "${prompt}"\n⏳ Подождите...`
+            })
+          });
+          
+          // Вызов FLUX через A4F API
+          const fluxResponse = await fetch('https://api.a4f.co/v1/images/generations', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${process.env.A4F_API_KEY}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              model: "flux-1.1-pro",
+              prompt: prompt,
+              n: 1,
+              size: "1024x1024"
+            })
+          });
+          
+          const fluxResult = await fluxResponse.json();
+          
+          if (fluxResult.data?.[0]?.url) {
+            // Отправляем изображение
+            await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendPhoto`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                chat_id: chatId,
+                photo: fluxResult.data[0].url,
+                caption: `🎨 "${prompt}"`
+              })
+            });
+          } else {
+            throw new Error('Не удалось получить изображение');
+          }
+          
+          return NextResponse.json({ success: true });
+        } catch (error) {
+          responseText = `❌ Ошибка генерации изображения: ${error.message}`;
+        }
       }
-      else if (text && text.toLowerCase().includes('код')) {
-        responseText = `💻 Анализирую код...
+      else if (text?.toLowerCase().startsWith('код')) {
+        const task = text.slice(3).trim();
         
-🤔 DeepSeek скоро будет подключен!`;
+        try {
+          const deepseekResponse = await fetch('https://api.a4f.co/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${process.env.A4F_API_KEY}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              model: "deepseek-v3",
+              messages: [
+                {
+                  role: "system",
+                  content: "Ты опытный программист. Отвечай кратко и по делу. Код оформляй в markdown."
+                },
+                {
+                  role: "user",
+                  content: task
+                }
+              ],
+              max_tokens: 1500,
+              temperature: 0.7
+            })
+          });
+          
+          const deepseekResult = await deepseekResponse.json();
+          
+          if (deepseekResult.choices?.[0]?.message?.content) {
+            responseText = `💻 DeepSeek V3:\n\n${deepseekResult.choices[0].message.content}`;
+          } else {
+            throw new Error('Пустой ответ от DeepSeek');
+          }
+        } catch (error) {
+          responseText = `❌ Ошибка DeepSeek: ${error.message}`;
+        }
       }
       else if (text) {
-        responseText = `🧠 Получил ваше сообщение: "${text}"
-
-Отвечаю из чата ID: ${chatId}
-От пользователя ID: ${fromId}
-
-Claude AI скоро будет подключен! 🚀`;
+        // Обычный ответ через Claude
+        try {
+          const claudeResponse = await fetch('https://api.a4f.co/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${process.env.A4F_API_KEY}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              model: "provider-3/claude-3.5-haiku",
+              messages: [
+                {
+                  role: "system",
+                  content: "Ты дружелюбный AI-ассистент. Отвечай кратко, но информативно на русском языке."
+                },
+                {
+                  role: "user",
+                  content: text
+                }
+              ],
+              max_tokens: 1000,
+              temperature: 0.8
+            })
+          });
+          
+          const claudeResult = await claudeResponse.json();
+          
+          if (claudeResult.choices?.[0]?.message?.content) {
+            responseText = `🧠 Claude 3.5 Haiku:\n\n${claudeResult.choices[0].message.content}`;
+          } else {
+            throw new Error('Пустой ответ от Claude');
+          }
+        } catch (error) {
+          responseText = `❌ Ошибка Claude: ${error.message}\n\nПроверьте API ключ и модель.`;
+        }
       }
-      else {
-        responseText = '🤖 Отправьте текстовое сообщение!';
-      }
       
-      console.log(`Sending response to chat ${chatId}: ${responseText}`);
-      
-      // Отправляем ответ точно в тот же чат
-      const telegramUrl = `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`;
-      const payload = {
-        chat_id: chatId,
-        text: responseText,
-        reply_to_message_id: body.message.message_id
-      };
-      
-      console.log('Sending to Telegram:', JSON.stringify(payload, null, 2));
-      
-      const telegramResponse = await fetch(telegramUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      
-      const result = await telegramResponse.json();
-      console.log('Telegram API response:', JSON.stringify(result, null, 2));
-      
-      if (!result.ok) {
-        console.error('Telegram API error:', result);
-        return NextResponse.json({ error: 'Telegram API error', details: result }, { status: 500 });
+      // Отправляем ответ
+      if (responseText) {
+        await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: chatId,
+            text: responseText,
+            parse_mode: 'Markdown'
+          })
+        });
       }
     }
     
@@ -82,12 +172,4 @@ Claude AI скоро будет подключен! 🚀`;
     console.error('Webhook error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
-}
-
-export async function GET() {
-  return NextResponse.json({ 
-    status: 'Webhook is working!',
-    bot: '@NeuromaniaGPT_bot',
-    timestamp: new Date().toISOString()
-  });
 }
