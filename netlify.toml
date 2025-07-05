@@ -11,3 +11,13 @@
 [functions]
   directory = ".netlify/functions"
   node_bundler = "esbuild"
+
+# Environment variables for functions
+[context.production.environment]
+  A4F_API_KEY = "your-a4f-api-key-here"
+
+[context.deploy-preview.environment]
+  A4F_API_KEY = "your-a4f-api-key-here"
+
+[context.branch-deploy.environment]
+  A4F_API_KEY = "your-a4f-api-key-here"
