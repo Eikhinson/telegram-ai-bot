@@ -1,11 +1,20 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 export default function Home() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [userId] = useState(() => 'user_' + Math.random().toString(36).substr(2, 9));
+  const messagesEndRef = useRef(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
 
   const sendMessage = async (e) => {
     e.preventDefault();
@@ -24,9 +33,7 @@ export default function Home() {
     setLoading(true);
 
     try {
-      console.log('Sending request to /api/chat');
-      
-      const response = await fetch('/api/chat', {
+      const response = await fetch('/.netlify/functions/chat', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -38,22 +45,11 @@ export default function Home() {
         })
       });
 
-      console.log('Response status:', response.status);
-      console.log('Response headers:', response.headers);
-
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        const text = await response.text();
-        console.error('Non-JSON response:', text);
-        throw new Error('Server returned non-JSON response');
-      }
-
       const data = await response.json();
-      console.log('Response data:', data);
       
       if (data.success) {
         const botMessage = {
@@ -68,7 +64,6 @@ export default function Home() {
         throw new Error(data.error || 'Ошибка отправки сообщения');
       }
     } catch (error) {
-      console.error('Send message error:', error);
       const errorMessage = {
         id: Date.now() + 1,
         text: `❌ Ошибка: ${error.message}`,
@@ -81,73 +76,109 @@ export default function Home() {
     }
   };
 
-  return (
-    <div style={{ padding: '20px', maxWidth: '800px', margin: '0 auto' }}>
-      <h1>🤖 NeuromaniaGPT Chat</h1>
-      <p>User ID: {userId}</p>
-      
-      <div style={{ 
-        border: '1px solid #ccc', 
-        height: '400px', 
-        overflowY: 'scroll', 
-        padding: '10px', 
-        marginBottom: '10px',
-        backgroundColor: '#f9f9f9'
-      }}>
-        {messages.map((message) => (
-          <div
-            key={message.id}
-            style={{
-              marginBottom: '10px',
-              padding: '8px',
-              backgroundColor: message.sender === 'user' ? '#e3f2fd' : '#fff',
-              borderRadius: '8px',
-              border: '1px solid #ddd'
-            }}
-          >
-            <strong>{message.sender === 'user' ? 'Вы' : 'Бот'}:</strong> {message.text}
-            <div style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>
-              {message.timestamp}
-            </div>
-          </div>
-        ))}
-        
-        {loading && (
-          <div style={{ padding: '8px', fontStyle: 'italic', color: '#666' }}>
-            Бот печатает...
-          </div>
-        )}
-      </div>
+  const clearChat = () => {
+    setMessages([]);
+  };
 
-      <form onSubmit={sendMessage} style={{ display: 'flex', gap: '10px' }}>
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Напишите сообщение..."
-          style={{ 
-            flex: 1, 
-            padding: '8px', 
-            border: '1px solid #ccc', 
-            borderRadius: '4px' 
-          }}
-          disabled={loading}
-        />
-        <button
-          type="submit"
-          disabled={loading || !input.trim()}
-          style={{ 
-            padding: '8px 16px', 
-            backgroundColor: '#007bff', 
-            color: 'white', 
-            border: 'none', 
-            borderRadius: '4px',
-            cursor: loading ? 'not-allowed' : 'pointer'
-          }}
-        >
-          {loading ? 'Отправка...' : 'Отправить'}
-        </button>
-      </form>
+  return (
+    <div className="min-h-screen bg-gray-100 flex flex-col">
+      {/* Header */}
+      <header className="bg-blue-600 text-white p-4 shadow-lg">
+        <div className="max-w-4xl mx-auto flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold">🤖 NeuromaniaGPT</h1>
+            <p className="text-blue-200">AI Assistant с FLUX, Claude и DeepSeek</p>
+          </div>
+          <div className="text-right">
+            <p className="text-sm text-blue-200">Ваш ID: {userId}</p>
+            <button 
+              onClick={clearChat}
+              className="text-xs bg-blue-500 hover:bg-blue-400 px-2 py-1 rounded mt-1"
+            >
+              Очистить чат
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* Chat Container */}
+      <div className="flex-1 max-w-4xl mx-auto w-full flex flex-col">
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {messages.length === 0 && (
+            <div className="text-center text-gray-500 mt-8">
+              <h2 className="text-xl mb-4">👋 Добро пожаловать!</h2>
+              <div className="bg-white p-6 rounded-lg shadow-md max-w-md mx-auto">
+                <h3 className="font-bold mb-2">Что я умею:</h3>
+                <ul className="text-left space-y-2">
+                  <li>🧠 <strong>Общение:</strong> Просто пишите мне</li>
+                  <li>🎨 <strong>Изображения:</strong> "нарисуй [описание]"</li>
+                  <li>💻 <strong>Код:</strong> "код [задача]"</li>
+                </ul>
+                <p className="mt-4 text-sm text-gray-600">
+                  Попробуйте: "Расскажи анекдот" или "нарисуй кота"
+                </p>
+              </div>
+            </div>
+          )}
+
+          {messages.map((message) => (
+            <div
+              key={message.id}
+              className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+            >
+              <div
+                className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                  message.sender === 'user'
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-white text-gray-800 shadow-md'
+                }`}
+              >
+                <p className="whitespace-pre-wrap">{message.text}</p>
+                <p className={`text-xs mt-1 ${
+                  message.sender === 'user' ? 'text-blue-200' : 'text-gray-500'
+                }`}>
+                  {message.timestamp}
+                </p>
+              </div>
+            </div>
+          ))}
+          
+          {loading && (
+            <div className="flex justify-start">
+              <div className="bg-white text-gray-800 shadow-md max-w-xs lg:max-w-md px-4 py-2 rounded-lg">
+                <div className="flex items-center space-x-2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+                  <span>AI думает...</span>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          <div ref={messagesEndRef} />
+        </div>
+
+        {/* Input Form */}
+        <div className="border-t bg-white p-4">
+          <form onSubmit={sendMessage} className="flex space-x-2">
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Напишите сообщение..."
+              className="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              disabled={loading}
+            />
+            <button
+              type="submit"
+              disabled={loading || !input.trim()}
+              className="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white px-6 py-2 rounded-lg font-medium"
+            >
+              {loading ? '⏳' : '📤'}
+            </button>
+          </form>
+        </div>
+      </div>
     </div>
   );
 }
