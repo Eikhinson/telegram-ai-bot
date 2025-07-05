@@ -121,10 +121,10 @@ exports.handler = async (event, context) => {
             })
           ];
 
-          const claudeResponse = await fetch('https://api.a4f.co/v1/chat/completions', {
+          const claudeResponse = await fetch('https://api.voidai.app/v1/chat/completions', {
             method: 'POST',
             headers: {
-              'Authorization': `Bearer ${process.env.A4F_API_KEY}`,
+              'Authorization': `Bearer ${process.env.VOIDAI_API_KEY}`,
               'Content-Type': 'application/json'
             },
             body: JSON.stringify({
@@ -154,10 +154,10 @@ exports.handler = async (event, context) => {
           const prompt = message.slice(7).trim();
           
           try {
-            const fluxResponse = await fetch('https://api.a4f.co/v1/images/generations', {
+            const fluxResponse = await fetch('https://api.voidai.app/v1/images/generations', {
               method: 'POST',
               headers: {
-                'Authorization': `Bearer ${process.env.A4F_API_KEY}`,
+                'Authorization': `Bearer ${process.env.VOIDAI_API_KEY}`,
                 'Content-Type': 'application/json'
               },
               body: JSON.stringify({
@@ -198,10 +198,10 @@ exports.handler = async (event, context) => {
               }
             ];
 
-            const deepseekResponse = await fetch('https://api.a4f.co/v1/chat/completions', {
+            const deepseekResponse = await fetch('https://api.voidai.app/v1/chat/completions', {
               method: 'POST',
               headers: {
-                'Authorization': `Bearer ${process.env.A4F_API_KEY}`,
+                'Authorization': `Bearer ${process.env.VOIDAI_API_KEY}`,
                 'Content-Type': 'application/json'
               },
               body: JSON.stringify({
@@ -241,10 +241,10 @@ exports.handler = async (event, context) => {
               }
             ];
 
-            const claudeResponse = await fetch('https://api.a4f.co/v1/chat/completions', {
+            const claudeResponse = await fetch('https://api.voidai.app/v1/chat/completions', {
               method: 'POST',
               headers: {
-                'Authorization': `Bearer ${process.env.A4F_API_KEY}`,
+                'Authorization': `Bearer ${process.env.VOIDAI_API_KEY}`,
                 'Content-Type': 'application/json'
               },
               body: JSON.stringify({
